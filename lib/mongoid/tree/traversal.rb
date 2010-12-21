@@ -80,6 +80,11 @@ module Mongoid # :nodoc:
           roots.each { |root| root.traverse(type, &block) }
           nil
         end
+        def roots_traversal
+          nodes = []
+          self.class.traverse { |child_node| nodes << child_node; }
+          nodes
+        end
       end
 
       ##

@@ -36,9 +36,12 @@ module Mongoid
         reflect_on_association(:children).options[:default_order] = :position.asc
 
         field :position, :type => Integer
+        field :depth, :type => Integer
+        field :path_enumeration, :type => Array, :default => []
 
-        before_save :assign_default_position
+        before_save :assign_default_position, :assign_depth
         before_save :reposition_former_siblings, :if => :sibling_reposition_required?
+        before_save :assign_path_enumeration
         after_destroy :move_lower_siblings_up
       end
 
@@ -169,6 +172,22 @@ module Mongoid
           save!
         end
       end
+      
+      ##
+      # Sort your siblings according to the supplied field (symbol)
+      #
+      # This method will override existing positions
+      def sort_siblings!(field = :to_s)
+        self.siblings_and_self.sort {|a, b| a.send(field) <=> b.send(field)}.each_with_index { |item, ix| item.position = ix; item.save! }
+      end
+
+      ##
+      # Sort your children according to the supplied field (symbol)
+      #
+      # This method will override existing positions
+      def sort_children!(field = :to_s)
+        self.children.sort {|a, b| a.send(field) <=> b.send(field)}.each_with_index { |item, ix| item.position = ix; item.save! }
+      end
 
     private
 
@@ -196,6 +215,21 @@ module Mongoid
           self.position = self.siblings.max(:position) + 1
         end
       end
+      
+      def assign_depth
+        if self.parent_ids.blank?
+          self.depth = 0
+        else
+          self.depth = self.parent_ids.count
+        end
+      end
+      
+      def assign_path_enumeration
+        # Single Query Path (depth first)
+        self.path_enumeration = self.ancestors.sort { |a, b| a.depth <=> b.depth }.map(&:position)
+        self.path_enumeration << self.position
+      end
+      
     end
   end
 end

@@ -298,15 +298,20 @@ module Mongoid # :nodoc:
 
   private
     def rearrange
-      if self.parent_id
+      if self.parent_id.blank?
         self.parent_ids = parent.parent_ids + [self.parent_id]
       else
         self.parent_ids = []
       end
 
-      rearrange_children! if self.parent_ids_changed?
+      rearrange_children! if child_rearrange_required?
     end
-
+    
+    def child_rearrange_required?
+      trigger_fields = ['parent_ids']
+      self.changed? && !(self.changed & tigger_fields).blank? && self.persisted?
+    end
+    
     def rearrange_children
       @rearrange_children = false
       self.children.find(:all).each { |c| c.save }
