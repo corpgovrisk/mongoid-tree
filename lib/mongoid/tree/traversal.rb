@@ -82,7 +82,7 @@ module Mongoid # :nodoc:
         end
         def roots_traversal
           nodes = []
-          self.class.traverse { |child_node| nodes << child_node; }
+          base_class.traverse { |child_node| nodes << child_node; }
           nodes
         end
       end
