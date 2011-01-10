@@ -99,6 +99,7 @@ module Mongoid # :nodoc:
       index :parent_ids
 
       set_callback :save, :after, :rearrange_children, :if => :rearrange_children?
+      set_callback :validation, :before, :nil_blank_fields
       set_callback :validation, :before do
         run_callbacks(:rearrange) { rearrange }
       end
@@ -323,6 +324,13 @@ module Mongoid # :nodoc:
 
     def position_in_tree
       errors.add(:parent_id, :invalid) if self.parent_ids.include?(self.id)
+    end
+
+    ##
+    # These fields are required to be the following when blank?
+    def nil_blank_fields
+      self.parent_id = nil if self.parent_id.blank?
+      self.parent_ids = [] if self.parent_ids.blank?
     end
   end # Tree
 end # Mongoid
