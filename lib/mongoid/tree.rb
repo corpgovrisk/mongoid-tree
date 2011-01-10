@@ -88,7 +88,7 @@ module Mongoid # :nodoc:
           super
           objects.each do |c|
             c.parent = @parent
-            c.save
+            c.save unless @parent.new_record?
           end
         end
       end
@@ -194,7 +194,11 @@ module Mongoid # :nodoc:
     ##
     # Returns this document's root node
     def root
-      base_class.find(parent_ids.first)
+      if parent_ids.present?
+        return base_class.find(parent_ids.first)
+      else
+        return self.root? ? self : self.parent.root
+      end
     end
 
     ##

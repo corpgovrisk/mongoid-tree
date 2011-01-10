@@ -36,6 +36,19 @@ describe Mongoid::Tree do
       expect { root.children << child; root.save! }.to_not raise_error(Mongoid::Errors::DocumentNotFound)
       child.should be_persisted
     end
+
+    it "should not be saved when parent is not saved" do
+      root = Node.new(:name => 'root'); child = Node.new(:name => 'child')
+      child.should_not_receive(:save)
+      root.children << child
+    end
+
+    it "should save its unsaved children" do
+      root = Node.new(:name => 'root'); child = Node.new(:name => 'child')
+      root.children << child
+      child.should_receive(:save)
+      root.save
+    end
   end
 
   describe 'when saved' do
@@ -103,6 +116,12 @@ describe Mongoid::Tree do
       child.parent = node(:subchild)
       child.should_not be_valid
       child.errors[:parent_id].should_not be_nil
+    end
+
+    it "should save its children when added" do
+      new_child = Node.new(:name => 'new_child')
+      node(:root).children << new_child
+      new_child.should be_persisted
     end
   end
 
@@ -236,6 +255,18 @@ describe Mongoid::Tree do
     describe '#root' do
       it "should return the root for this document" do
         node(:subchild).root.should == node(:root)
+      end
+
+      it "should return itself when there is no root" do
+        new_node = Node.new
+        new_node.root.should be(new_node)
+      end
+
+      it "should return it root when it's not saved yet" do
+        root = Node.new(:name => 'root')
+        new_node = Node.new(:name => 'child')
+        new_node.parent = root
+        new_node.root.should be(root)
       end
     end
 
