@@ -33,8 +33,6 @@ module Mongoid
       extend ActiveSupport::Concern
 
       included do
-        reflect_on_association(:children).options[:default_order] = :position.asc
-
         field :position, :type => Integer
         field :depth, :type => Integer
         field :path_enumeration, :type => Array, :default => []
