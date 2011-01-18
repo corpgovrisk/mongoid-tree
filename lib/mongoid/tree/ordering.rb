@@ -37,7 +37,11 @@ module Mongoid
         field :depth, :type => Integer
         field :path_enumeration, :type => Array, :default => []
 
-        before_save :assign_default_position, :assign_depth
+        # TODO: Figure out why this doesn't work at all
+        default_scope order_by(:position)
+
+        before_save :assign_default_position
+        before_save :assign_depth
         before_save :reposition_former_siblings, :if => :sibling_reposition_required?
         before_save :assign_path_enumeration
         after_destroy :move_lower_siblings_up
