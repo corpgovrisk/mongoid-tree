@@ -83,18 +83,23 @@ module Mongoid # :nodoc:
     autoload :Traversal, 'mongoid/tree/traversal'
 
     included do
-      references_many :children, :class_name => self.name, :foreign_key => :parent_id, :inverse_of => :parent do
-        # TODO: This shouldn't be nescessary at all, should it?
-        def <<(*objects) # :nodoc:
-          super
-          objects.each do |c|
-            c.parent = base
-            c.save if base.persisted?
-          end
-        end
-      end
 
-      referenced_in :parent, :class_name => self.name, :inverse_of => :children, :index => true
+      #require 'ruby-debug'
+      #debugger
+
+      references_many :children, :class_name => self.name, :validate => false, :autosave => true, :as => :parent, :inverse_of => :parent
+      ## do
+      ##   # TODO: This shouldn't be nescessary at all, should it?
+      ##   def <<(*objects) # :nodoc:
+      ##     super
+      ##     objects.each do |c|
+      ##       c.parent = base
+      ##       c.save if base.persisted?
+      ##     end
+      ##   end
+      ## end
+
+      referenced_in :parent, :class_name => self.name, :index => true, :as => :children, :inverse_of => :children
 
       field :parent_ids, :type => Array, :default => []
       index :parent_ids
