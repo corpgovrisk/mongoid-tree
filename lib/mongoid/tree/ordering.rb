@@ -37,6 +37,7 @@ module Mongoid
         field :depth, :type => Integer
         field :path_enumeration, :type => Array, :default => []
 
+        # default_scope is currently broken
         #default_scope asc(:position)
 
         before_save :assign_default_position
