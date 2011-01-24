@@ -37,26 +37,13 @@ module Mongoid
         field :depth, :type => Integer
         field :path_enumeration, :type => Array, :default => []
 
-        # TODO: Figure out why this doesn't work at all
-        default_scope order_by(:position)
+        #default_scope asc(:position)
 
         before_save :assign_default_position
         before_save :assign_depth
         before_save :reposition_former_siblings, :if => :sibling_reposition_required?
         before_save :assign_path_enumeration
         after_destroy :move_lower_siblings_up
-      end
-
-      ##
-      # :singleton-method: roots
-      # Returns all root documents ordered by position
-
-      module ClassMethods # :nodoc:
-
-        def roots
-          super.order_by(:position.asc)
-        end
-
       end
 
       ##
@@ -76,13 +63,13 @@ module Mongoid
       ##
       # Returns the lowest sibling (could be self)
       def last_sibling_in_list
-        siblings_and_self.asc(:position).last
+        siblings_and_self.last
       end
 
       ##
       # Returns the highest sibling (could be self)
       def first_sibling_in_list
-        siblings_and_self.asc(:position).first
+        siblings_and_self.first
       end
 
       ##

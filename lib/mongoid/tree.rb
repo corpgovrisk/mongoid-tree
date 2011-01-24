@@ -83,23 +83,9 @@ module Mongoid # :nodoc:
     autoload :Traversal, 'mongoid/tree/traversal'
 
     included do
+      references_many :children, :class_name => self.name, :foreign_key => :parent_id, :inverse_of => :parent, :autosave => true
 
-      #require 'ruby-debug'
-      #debugger
-
-      references_many :children, :class_name => self.name, :validate => false, :autosave => true, :as => :parent, :inverse_of => :parent
-      ## do
-      ##   # TODO: This shouldn't be nescessary at all, should it?
-      ##   def <<(*objects) # :nodoc:
-      ##     super
-      ##     objects.each do |c|
-      ##       c.parent = base
-      ##       c.save if base.persisted?
-      ##     end
-      ##   end
-      ## end
-
-      referenced_in :parent, :class_name => self.name, :index => true, :as => :children, :inverse_of => :children
+      referenced_in :parent, :class_name => self.name, :inverse_of => :children, :index => true
 
       field :parent_ids, :type => Array, :default => []
       index :parent_ids
@@ -282,9 +268,7 @@ module Mongoid # :nodoc:
     ##
     # Nullifies all children's parent_id
     def nullify_children
-      # TODO: Figure out why this doesn't work like expected.
-      # children.nullify_all
-      children.each { |c| c.parent = nil; c.parent_id = nil; c.save }
+      children.nullify_all
     end
 
     ##
@@ -310,20 +294,15 @@ module Mongoid # :nodoc:
 
   private
     def rearrange
-      if !self.parent_id.blank?
+      if self.parent_id
         self.parent_ids = parent.parent_ids + [self.parent_id]
       else
         self.parent_ids = []
       end
-      
-      rearrange_children! if child_rearrange_required?
+
+      rearrange_children! if self.parent_ids_changed?
     end
-    
-    def child_rearrange_required?
-      trigger_fields = ['parent_ids']
-      self.changed? && !(self.changed & trigger_fields).blank? && self.persisted?
-    end
-    
+
     def rearrange_children
       @rearrange_children = false
       self.children.find(:all).each { |c| c.save }
@@ -332,6 +311,5 @@ module Mongoid # :nodoc:
     def position_in_tree
       errors.add(:parent_id, :invalid) if self.parent_ids.include?(self.id)
     end
-
-  end # Tree
-end # Mongoid
+  end
+end
