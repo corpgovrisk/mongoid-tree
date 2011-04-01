@@ -83,9 +83,9 @@ module Mongoid # :nodoc:
     autoload :Traversal, 'mongoid/tree/traversal'
 
     included do
-      references_many :children, :class_name => self.name, :foreign_key => :parent_id, :inverse_of => :parent, :autosave => true
+      references_many :children, :class_name => self.name, :foreign_key => :parent_id, :inverse_of => :parent, :autosave => true, :validate => false
 
-      referenced_in :parent, :class_name => self.name, :inverse_of => :children, :index => true
+      referenced_in :parent, :class_name => self.name, :inverse_of => :children, :index => true, :validate => false
 
       field :parent_ids, :type => Array, :default => []
       index :parent_ids
@@ -194,13 +194,13 @@ module Mongoid # :nodoc:
     end
 
     ##
-    # Returns this document's ancestors
+    # Returns a chainable criteria for this document's ancestors
     def ancestors
       base_class.where(:_id.in => parent_ids)
     end
 
     ##
-    # Returns this document's ancestors and itself
+    # Returns an array of this document's ancestors and itself
     def ancestors_and_self
       ancestors + [self]
     end
@@ -212,13 +212,13 @@ module Mongoid # :nodoc:
     end
 
     ##
-    # Returns this document's descendants
+    # Returns a chainable criteria for this document's descendants
     def descendants
       base_class.where(:parent_ids => self.id)
     end
 
     ##
-    # Returns this document's descendants and itself
+    # Returns and array of this document's descendants and itself
     def descendants_and_self
       [self] + descendants
     end
@@ -305,7 +305,7 @@ module Mongoid # :nodoc:
 
     def rearrange_children
       @rearrange_children = false
-      self.children.find(:all).each { |c| c.save }
+      self.children.each { |c| c.save }
     end
 
     def position_in_tree
