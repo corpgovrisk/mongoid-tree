@@ -189,7 +189,9 @@ module Mongoid
         former_siblings = base_class.where(:parent_id => attribute_was('parent_id')).
                                      and(:position.gt => (attribute_was('position') || 0)).
                                      excludes(:id => self.id)
-        former_siblings.each { |s| s.inc(:position,  -1) }
+        former_siblings.each { |s| s.inc(:position,  -1); }
+        # Re-build the Enumeration Path 
+        former_siblings.first.sort_siblings! if (former_siblings.count > 0)
       end
 
       def sibling_reposition_required?
@@ -217,8 +219,8 @@ module Mongoid
       def assign_path_enumeration
         # Single Query Path (depth first)
         self.path_enumeration = self.ancestors.sort { |a, b| a.depth <=> b.depth }.map(&:position)
-        self.path_enumeration << self.position
-        rearrange_children! if self.changes.include?('position') || self.changes.include?('path_enumeration')
+        self.path_enumeration << self.position.to_i
+        rearrange_children! if (position_changed? || path_enumeration_changed?)
       end
       
     end
