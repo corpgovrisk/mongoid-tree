@@ -218,6 +218,7 @@ module Mongoid
         # Single Query Path (depth first)
         self.path_enumeration = self.ancestors.sort { |a, b| a.depth <=> b.depth }.map(&:position)
         self.path_enumeration << self.position
+        rearrange_children! if self.changes.include?('position') || self.changes.include?('path_enumeration')
       end
       
     end
