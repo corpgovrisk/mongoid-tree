@@ -34,12 +34,16 @@ module Mongoid
 
       included do
         field :position, :type => Integer
-
-        default_scope asc(:position)
+        index :position
+        field :position_enumeration, :type => Array, :default => []
+        index :position_enumeration
+        
+        default_scope asc(:position_enumeration)
 
         before_save :assign_default_position
+        before_save :assign_position_enumeration
         before_save :reposition_former_siblings, :if => :sibling_reposition_required?
-        after_destroy :move_lower_siblings_up
+        after_destroy :move_lower_siblings_up!
       end
 
       ##
@@ -59,19 +63,19 @@ module Mongoid
       ##
       # Returns the lowest sibling (could be self)
       def last_sibling_in_list
-        siblings_and_self.last
+        siblings_and_self.order_by([[:position, :asc]]).last
       end
 
       ##
       # Returns the highest sibling (could be self)
       def first_sibling_in_list
-        siblings_and_self.first
+        siblings_and_self.order_by([[:position, :asc]]).first
       end
 
       ##
       # Is this the highest sibling?
       def at_top?
-        higher_siblings.empty?
+        (self.position == 0) || higher_siblings.empty?
       end
 
       ##
@@ -98,16 +102,16 @@ module Mongoid
       # Move this node one position up
       def move_up
         return if at_top?
-        siblings.where(:position => self.position - 1).first.inc(:position, 1)
-        inc(:position, -1)
+        other = siblings.where(:position => self.position - 1).first
+        move_above(other)
       end
 
       ##
       # Move this node one position down
       def move_down
         return if at_bottom?
-        siblings.where(:position => self.position + 1).first.inc(:position, -1)
-        inc(:position, 1)
+        other = siblings.where(:position => self.position + 1).first
+        move_below(other)
       end
 
       ##
@@ -115,21 +119,33 @@ module Mongoid
       #
       # This method changes the node's parent if nescessary.
       def move_above(other)
+        other_id = other.is_a?(BSON::ObjectId) ? other : other.id
+        return if self.id == other_id
+        other = base_class.find(other_id) # Ensure other is up-to-date
         unless sibling_of?(other)
           self.parent_id = other.parent_id
           save!
         end
 
         if position > other.position
-          new_position = other.position
-          other.lower_siblings.where(:position.lt => self.position).each { |s| s.inc(:position, 1) }
-          other.inc(:position, 1)
-          self.position = new_position
+          new_position = other.position.to_i
+          other.lower_siblings.where(:position.lt => self.position).each do |s| 
+            s.position += 1
+            s.save! 
+          end
+          other.position += 1
+          other.save!
+          self.position = new_position.to_i
+          Rails.logger.debug " [TREE] move_above() called save! -where- position > other.position"
           save!
         else
-          new_position = other.position - 1
-          other.higher_siblings.where(:position.gt => self.position).each { |s| s.inc(:position, -1) }
-          self.position = new_position
+          new_position = (other.position - 1).to_i
+          other.higher_siblings.where(:position.gt => self.position).each do |s| 
+            s.position += -1
+            s.save!
+          end
+          self.position = new_position.to_i
+          Rails.logger.debug " [TREE] move_above() called save! -where- !(position > other.position)"
           save!
         end
       end
@@ -139,50 +155,77 @@ module Mongoid
       #
       # This method changes the node's parent if nescessary.
       def move_below(other)
+        other_id = other.is_a?(BSON::ObjectId) ? other : other.id
+        return if self.id == other_id
+        other = base_class.find(other_id) # Ensure other is up-to-date
         unless sibling_of?(other)
           self.parent_id = other.parent_id
+          Rails.logger.debug " [TREE] move_below::sibling_of called"
           save!
         end
 
         if position > other.position
-          new_position = other.position + 1
-          other.lower_siblings.where(:position.lt => self.position).each { |s| s.inc(:position, 1) }
-          self.position = new_position
+          new_position = (other.position + 1).to_i
+          other.lower_siblings.where(:position.lt => self.position).each do |s| 
+            s.position += 1
+            s.save!
+          end
+          self.position = new_position.to_i
+          Rails.logger.debug " [TREE] move_below() called save! -where- position > other.position"
           save!
         else
-          new_position = other.position
-          other.higher_siblings.where(:position.gt => self.position).each { |s| s.inc(:position, -1) }
-          other.inc(:position, -1)
-          self.position = new_position
+          new_position = other.position.to_i
+          other.higher_siblings.where(:position.gt => self.position).each do |s| 
+            s.position += -1
+            s.save!
+          end
+          other.position += -1
+          other.save!
+          self.position = new_position.to_i
+          Rails.logger.debug " [TREE] move_below() called save! -where- !(position > other.position)"
           save!
         end
       end
 
     private
-
-      def move_lower_siblings_up
-        lower_siblings.each { |s| s.inc(:position, -1) }
+      def move_lower_siblings_up!
+        lower_siblings.each do |s| 
+          s.position += -1
+          s.save!
+        end
       end
 
       def reposition_former_siblings
         former_siblings = base_class.where(:parent_id => attribute_was('parent_id')).
                                      and(:position.gt => (attribute_was('position') || 0)).
                                      excludes(:id => self.id)
-        former_siblings.each { |s| s.inc(:position,  -1) }
+        former_siblings.each do |s| 
+          s.position += -1
+          s.save!
+        end
       end
 
       def sibling_reposition_required?
-        parent_id_changed? && persisted?
+        self.changes.include?('parent_id') && persisted?
       end
 
       def assign_default_position
-        return unless self.position.nil? || self.parent_id_changed?
+        return unless (self.position.nil? || self.parent_id_changed?)
 
         if self.siblings.empty? || self.siblings.collect(&:position).compact.empty?
           self.position = 0
         else
-          self.position = self.siblings.max(:position) + 1
+          self.position = (self.siblings.max(:position) + 1).to_i
         end
+      end
+      
+      def assign_position_enumeration
+        if self.parent_id
+          self.position_enumeration = self.parent.position_enumeration + [self.position]
+        else
+          self.position_enumeration = [self.position]
+        end
+        Rails.logger.debug " [TREE] assign_position_enumeration()  position_enumeration => #{position_enumeration}   position_enumeration_changed? => #{position_enumeration_changed?}"
       end
     end
   end

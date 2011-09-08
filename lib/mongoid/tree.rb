@@ -84,20 +84,18 @@ module Mongoid # :nodoc:
 
     included do
       references_many :children, :class_name => self.name, :foreign_key => :parent_id, :inverse_of => :parent, :autosave => true, :validate => false
-
       referenced_in :parent, :class_name => self.name, :inverse_of => :children, :index => true, :validate => false
 
       field :parent_ids, :type => Array, :default => []
       index :parent_ids
 
-      set_callback :save, :after, :rearrange_children, :if => :rearrange_children?
-      set_callback :validation, :before do
-        run_callbacks(:rearrange) { rearrange }
-      end
+      define_model_callbacks :rearrange, :only => [:before, :after]
+
+      # Doesn't quite make sense.... it toggles the trigger for rearrange, nothing more!
+      before_save { run_callbacks(:rearrange) { assign_parent_ids } }
+      after_save :rearrange_children, :if => :rearrange_children?
 
       validate :position_in_tree
-
-      define_model_callbacks :rearrange, :only => [:before, :after]
 
       class_eval "def base_class; ::#{self.name}; end"
     end
@@ -119,7 +117,7 @@ module Mongoid # :nodoc:
     module ClassMethods # :nodoc:
 
       def root
-        first(:conditions => { :parent_id => nil })
+        roots.first
       end
 
       def roots
@@ -127,7 +125,7 @@ module Mongoid # :nodoc:
       end
 
       def leaves
-        where(:_id.nin => only(:parent_id).collect(&:parent_id))
+        where(:_id.nin => only(:parent_id).collect{|d| d.parent_id})
       end
 
     end
@@ -250,7 +248,7 @@ module Mongoid # :nodoc:
     ##
     # Returns all leaves of this document (be careful, currently involves two queries)
     def leaves
-      base_class.where(:_id.nin => base_class.only(:parent_id).collect(&:parent_id)).and(:parent_ids => self.id)
+      base_class.where(:_id.nin => base_class.only(:parent_id).collect{|d| d.parent_id}).and(:parent_ids => self.id)
     end
 
     ##
@@ -262,7 +260,7 @@ module Mongoid # :nodoc:
     ##
     # Will the children be rearranged after next save?
     def rearrange_children?
-      !!@rearrange_children
+      !!@rearrange_children || trigger_rearrange?
     end
 
     ##
@@ -293,16 +291,19 @@ module Mongoid # :nodoc:
     end
 
   private
-    def rearrange
+    # Callback
+    def assign_parent_ids
       if self.parent_id
         self.parent_ids = parent.parent_ids + [self.parent_id]
       else
         self.parent_ids = []
       end
-
-      rearrange_children! if self.parent_ids_changed?
     end
 
+    def trigger_rearrange?
+      self.changes.include?('parent_ids') || self.changes.include?('position_enumeration')
+    end
+    
     def rearrange_children
       @rearrange_children = false
       self.children.each { |c| c.save }
