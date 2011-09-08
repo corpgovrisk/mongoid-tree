@@ -260,7 +260,7 @@ module Mongoid # :nodoc:
     ##
     # Will the children be rearranged after next save?
     def rearrange_children?
-      !!@rearrange_children || trigger_rearrange?
+      !!@rearrange_children
     end
 
     ##
@@ -300,9 +300,11 @@ module Mongoid # :nodoc:
       end
     end
 
-    def trigger_rearrange?
-      self.changes.include?('parent_ids') || self.changes.include?('position_enumeration')
-    end
+    ##
+    # @ToDo Deprecated
+    #def trigger_rearrange?
+    #  self.changes.include?('parent_ids') || self.changes.include?('position_enumeration')
+    #end
     
     def rearrange_children
       @rearrange_children = false

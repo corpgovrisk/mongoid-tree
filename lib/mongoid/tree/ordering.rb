@@ -136,7 +136,6 @@ module Mongoid
           other.position += 1
           other.save!
           self.position = new_position.to_i
-          Rails.logger.debug " [TREE] move_above() called save! -where- position > other.position"
           save!
         else
           new_position = (other.position - 1).to_i
@@ -145,7 +144,6 @@ module Mongoid
             s.save!
           end
           self.position = new_position.to_i
-          Rails.logger.debug " [TREE] move_above() called save! -where- !(position > other.position)"
           save!
         end
       end
@@ -160,7 +158,6 @@ module Mongoid
         other = base_class.find(other_id) # Ensure other is up-to-date
         unless sibling_of?(other)
           self.parent_id = other.parent_id
-          Rails.logger.debug " [TREE] move_below::sibling_of called"
           save!
         end
 
@@ -171,7 +168,6 @@ module Mongoid
             s.save!
           end
           self.position = new_position.to_i
-          Rails.logger.debug " [TREE] move_below() called save! -where- position > other.position"
           save!
         else
           new_position = other.position.to_i
@@ -182,7 +178,6 @@ module Mongoid
           other.position += -1
           other.save!
           self.position = new_position.to_i
-          Rails.logger.debug " [TREE] move_below() called save! -where- !(position > other.position)"
           save!
         end
       end
@@ -225,7 +220,7 @@ module Mongoid
         else
           self.position_enumeration = [self.position]
         end
-        Rails.logger.debug " [TREE] assign_position_enumeration()  position_enumeration => #{position_enumeration}   position_enumeration_changed? => #{position_enumeration_changed?}"
+        rearrange_children! if self.changes.include?('position_enumeration')
       end
     end
   end
