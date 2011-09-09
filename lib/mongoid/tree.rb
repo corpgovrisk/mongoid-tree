@@ -312,7 +312,7 @@ module Mongoid # :nodoc:
     end
 
     def position_in_tree
-      errors.add(:parent_id, :invalid) if (self.parent_ids.include?(self.id) || self.descendants.map{ |h| h._id }.include?(self.parent_id))
+      errors.add(:parent_id, :invalid) if (self.parent_ids.include?(self.id) || (self.id == self.parent_id) || self.descendants.map{ |h| h._id }.include?(self.parent_id))
     end
   end
 end
