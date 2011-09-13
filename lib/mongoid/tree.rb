@@ -303,7 +303,7 @@ module Mongoid # :nodoc:
     ##
     # @ToDo Deprecated
     #def trigger_rearrange?
-    #  self.changes.include?('parent_ids') || self.changes.include?('position_enumeration')
+    #  self.changes.include?('parent_ids') || self.changes.include?('pos_enum')
     #end
     
     def rearrange_children

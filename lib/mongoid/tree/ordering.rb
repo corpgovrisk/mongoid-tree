@@ -35,13 +35,14 @@ module Mongoid
       included do
         field :position, :type => Integer
         index :position
-        field :position_enumeration, :type => Array, :default => []
-        index :position_enumeration
+        field :pos_enum, :type => Array, :default => []
+        field :pos_enum_sort, :type => String, :default => ''
+        index :pos_enum_sort
         
-        default_scope asc(:position_enumeration)
+        default_scope asc(:pos_enum_sort)
 
         before_save :assign_default_position
-        before_save :assign_position_enumeration
+        before_save :assign_pos_enum
         before_save :reposition_former_siblings, :if => :sibling_reposition_required?
         after_destroy :move_lower_siblings_up!
       end
@@ -214,13 +215,14 @@ module Mongoid
         end
       end
       
-      def assign_position_enumeration
+      def assign_pos_enum
         if self.parent_id
-          self.position_enumeration = self.parent.position_enumeration + [self.position]
+          self.pos_enum = self.parent.pos_enum + [self.position]
         else
-          self.position_enumeration = [self.position]
+          self.pos_enum = [self.position]
         end
-        rearrange_children! if self.changes.include?('position_enumeration')
+        self.pos_enum_sort = self.pos_enum.join(',')
+        rearrange_children! if self.changes.include?('pos_enum')
       end
     end
   end
