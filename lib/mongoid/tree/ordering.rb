@@ -211,7 +211,12 @@ module Mongoid
         if self.siblings.empty? || self.siblings.collect(&:position).compact.empty?
           self.position = 0
         else
-          self.position = (self.siblings.max(:position) + 1).to_i
+          # Max can return "start" due to a mongoid bug.
+          max = self.siblings.max(:position)
+          # "start" only occurs when the query set for the map reduce result are 0 for all.
+          # This should also deprecate gracefully if it gets fixed.
+          cleaned_max = (max.is_a?(Numeric) ? max : 0)
+          self.position = (cleaned_max + 1).to_i
         end
       end
       
