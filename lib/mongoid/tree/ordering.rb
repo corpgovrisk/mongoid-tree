@@ -226,7 +226,7 @@ module Mongoid
         else
           self.pos_enum = [self.position]
         end
-        self.pos_enum_sort = self.pos_enum.join(',')
+        self.pos_enum_sort = self.pos_enum.collect { |i| "%05d" % i.to_i }.join(',')
         rearrange_children! if self.changes.include?('pos_enum')
       end
     end
