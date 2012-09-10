@@ -33,11 +33,11 @@ module Mongoid
       extend ActiveSupport::Concern
 
       included do
+        index({position: 1, pos_enum_sort: 1},{background: true, sparse: true})
+
         field :position, :type => Integer
-        index :position
         field :pos_enum, :type => Array, :default => []
         field :pos_enum_sort, :type => String, :default => ''
-        index :pos_enum_sort
         
         default_scope asc(:pos_enum_sort)
 
