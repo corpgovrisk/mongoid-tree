@@ -212,7 +212,7 @@ module Mongoid
           self.position = 0
         else
           # Max can return "start" due to a mongoid bug.
-          max = self.siblings.max(:position)
+          max = self.siblings.distinct(:position).max
           # "start" only occurs when the query set for the map reduce result are 0 for all.
           # This should also deprecate gracefully if it gets fixed.
           cleaned_max = (max.is_a?(Numeric) ? max : 0)
